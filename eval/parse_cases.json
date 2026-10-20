@@ -1,0 +1,183 @@
+[
+  {
+    "id": 1,
+    "text": "中午食堂两荤一素",
+    "ev": [
+      "eat/午"
+    ],
+    "clarify": true,
+    "why": "「两荤一素」没份量，估不出区间，必须追问；原标注错了"
+  },
+  {
+    "id": 2,
+    "text": "晚上跑了5公里，大概半小时",
+    "ev": [
+      "train/晚"
+    ],
+    "clarify": false,
+    "why": "含时长"
+  },
+  {
+    "id": 3,
+    "text": "早上两个包子一杯豆浆，中午没吃，晚上补了个鸡胸肉沙拉",
+    "ev": [
+      "eat/早",
+      "eat/午(skip)",
+      "eat/晚"
+    ],
+    "clarify": false,
+    "why": "三件，含阴性记录"
+  },
+  {
+    "id": 4,
+    "text": "今天加班到十点，随便吃了点",
+    "ev": [
+      "eat/晚"
+    ],
+    "clarify": true,
+    "why": "「随便吃了点」无法估，必须追问"
+  },
+  {
+    "id": 5,
+    "text": "76.4",
+    "ev": [
+      "weigh"
+    ],
+    "clarify": false,
+    "why": "称重"
+  },
+  {
+    "id": 6,
+    "text": "膝盖有点疼，今天不练了",
+    "ev": [
+      "special/injury"
+    ],
+    "clarify": false,
+    "why": "受伤直接停，走重规划取消今天训练；不追问医疗细节"
+  },
+  {
+    "id": 7,
+    "text": "累，不想动了",
+    "ev": [
+      "special/emotion"
+    ],
+    "clarify": true,
+    "why": "先关怀问一句是惰性还是真累，再走情绪"
+  },
+  {
+    "id": 8,
+    "text": "我这个能不能吃？",
+    "ev": [
+      "query"
+    ],
+    "clarify": false,
+    "why": "提问"
+  },
+  {
+    "id": 9,
+    "text": "今天结束了",
+    "ev": [
+      "end"
+    ],
+    "clarify": false,
+    "why": "结算"
+  },
+  {
+    "id": 10,
+    "text": "本来想练腿，结果打游戏到十一点",
+    "ev": [
+      "train(skip)"
+    ],
+    "clarify": false,
+    "why": "未练要记"
+  },
+  {
+    "id": 11,
+    "text": "中午吃了黄焖鸡，晚上跑了五公里",
+    "ev": [
+      "eat/午",
+      "train/晚"
+    ],
+    "clarify": false,
+    "why": "两条"
+  },
+  {
+    "id": 12,
+    "text": "火锅随便吃了点，喝了三瓶啤酒",
+    "ev": [
+      "eat/晚"
+    ],
+    "clarify": true,
+    "why": "区间宽，必须追问"
+  },
+  {
+    "id": 13,
+    "text": "早上一杯美式，中午沙拉，晚上火锅，还练了背",
+    "ev": [
+      "eat/早",
+      "eat/午",
+      "eat/晚",
+      "train"
+    ],
+    "clarify": true,
+    "why": "四条都缺份量（一杯美式/沙拉/火锅），必须追问；原标注错了"
+  },
+  {
+    "id": 14,
+    "text": "有点发烧，37.8",
+    "ev": [
+      "special/sick"
+    ],
+    "clarify": false,
+    "why": "直接停"
+  },
+  {
+    "id": 15,
+    "text": "蛋白粉到了，今天第一次喝",
+    "ev": [
+      "eat/加餐"
+    ],
+    "clarify": true,
+    "why": "要问份量"
+  },
+  {
+    "id": 16,
+    "text": "今天没吃早饭",
+    "ev": [
+      "eat/早(skip)"
+    ],
+    "clarify": false,
+    "why": "阴性记录"
+  },
+  {
+    "id": 18,
+    "text": "跑了10公里，累死了，晚上狂吃了一顿",
+    "ev": [
+      "train",
+      "eat/晚"
+    ],
+    "clarify": true,
+    "why": "「狂吃」低置信"
+  },
+  {
+    "id": 19,
+    "text": "怎么办，连续三天没忍住",
+    "ev": [
+      "special/emotion"
+    ],
+    "clarify": false,
+    "why": "情绪优先"
+  },
+  {
+    "id": 20,
+    "text": "早上两个鸡蛋，中午鸡胸饭，下午健身房练了一小时，晚上沙拉",
+    "ev": [
+      "eat/早",
+      "eat/午",
+      "train/下午",
+      "eat/晚"
+    ],
+    "clarify": false,
+    "why": "四条"
+  }
+]

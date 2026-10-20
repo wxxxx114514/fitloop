@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>陪跑</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background:#0f1115; color:#e6e8ee; font:15px/1.65 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif; }
+  .app { display:flex; height:100vh; }
+
+  /* ---------- 左栏 ---------- */
+  .side { width:290px; flex:none; background:#151920; border-right:1px solid #232833; padding:22px 20px; overflow:auto; }
+  .brand { font-size:19px; font-weight:600; letter-spacing:2px; margin-bottom:4px; }
+  .brand span { color:#5b93f0; }
+  .sub { color:#6b7280; font-size:12px; margin-bottom:22px; }
+
+  .goal { font-size:13px; color:#8b93a7; margin-bottom:6px; }
+  .big { font-size:30px; font-weight:600; letter-spacing:.5px; }
+  .big em { font-style:normal; font-size:14px; color:#8b93a7; font-weight:400; margin-left:4px; }
+  .bar { height:7px; background:#232833; border-radius:4px; overflow:hidden; margin:12px 0 6px; }
+  .bar i { display:block; height:100%; width:0; background:linear-gradient(90deg,#3f7df5,#4fd1c5); transition:width .6s; }
+  .pct { display:flex; justify-content:space-between; font-size:12px; color:#6b7280; margin-bottom:22px; }
+
+  .card { background:#1a1f28; border:1px solid #232833; border-radius:10px; padding:13px 14px; margin-bottom:10px; }
+  .card .k { font-size:12px; color:#8b93a7; margin-bottom:5px; }
+  .card .v { font-size:17px; font-weight:600; }
+  .card .v small { font-size:12px; color:#6b7280; font-weight:400; }
+  .ok { color:#4fd1c5; } .warn { color:#f0b45b; } .bad { color:#ef6b6b; }
+
+  /* ---------- 右栏 ---------- */
+  .main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .topbar { height:52px; flex:none; display:flex; align-items:center; padding:0 22px; border-bottom:1px solid #232833; color:#8b93a7; font-size:13px; }
+  .chat { flex:1; overflow:auto; padding:26px 22px 10px; }
+  .msg { max-width:640px; margin-bottom:16px; white-space:pre-wrap; word-break:break-word; }
+  .user { margin-left:auto; background:#2a3550; border-radius:12px 12px 2px 12px; padding:10px 14px; }
+  .bot { background:#1a1f28; border:1px solid #232833; border-radius:12px 12px 12px 2px; padding:11px 14px; }
+  .hint { color:#6b7280; font-size:13px; text-align:center; margin:40px 0; }
+  .typing { display:flex; gap:5px; align-items:center; }
+  .dot { width:6px; height:6px; border-radius:50%; background:#7c8497; animation:blink 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay:.2s }
+  .dot:nth-child(3) { animation-delay:.4s }
+  @keyframes blink { 0%,80%,100% { opacity:.25 } 40% { opacity:1 } }
+  .tip { margin-left:8px; color:#6b7280; font-size:12px; }
+
+  /* ---------- 输入区 ---------- */
+  .composer { flex:none; padding:12px 18px 18px; }
+  .box { display:flex; align-items:flex-end; gap:8px; background:#1a1f28; border:1px solid #2b3240; border-radius:14px; padding:8px 10px; }
+  .box:focus-within { border-color:#3f7df5; }
+  textarea { flex:1; resize:none; background:transparent; border:0; outline:0; color:#e6e8ee; font:inherit; max-height:120px; padding:6px 2px; }
+  button { border:0; cursor:pointer; font:inherit; }
+  .plus { width:34px; height:34px; border-radius:9px; background:#232833; color:#9aa3b5; font-size:19px; line-height:1; }
+  .plus:hover { background:#2b3240; color:#e6e8ee; }
+  .send { height:34px; padding:0 16px; border-radius:9px; background:#3f7df5; color:#fff; font-size:14px; }
+  .send:disabled { opacity:.45; cursor:default; }
+  .foot { color:#5a6172; font-size:11px; text-align:center; margin-top:9px; }
+  .gate { position:fixed; inset:0; background:rgba(10,12,16,.94); display:none; align-items:center; justify-content:center; z-index:10; padding:18px; }
+  .gate.on { display:flex; }
+  .form { width:min(560px,100%); background:#151920; border:1px solid #232833; border-radius:16px; padding:24px; }
+  .form h2 { font-size:18px; font-weight:600; margin-bottom:6px; }
+  .form .s { color:#6b7280; font-size:12.5px; margin-bottom:18px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+  .fld label { display:block; font-size:12px; color:#8b93a7; margin-bottom:4px; }
+  .fld input, .fld select { width:100%; background:#1a1f28; border:1px solid #2b3240; border-radius:8px; color:#e6e8ee; padding:9px 10px; font:inherit; outline:none; }
+  .fld input:focus, .fld select:focus { border-color:#3f7df5; }
+  .form .go { width:100%; margin-top:18px; height:40px; border-radius:10px; background:#3f7df5; color:#fff; font-size:15px; }
+  .form .note { color:#5a6172; font-size:11.5px; margin-top:11px; line-height:1.6; }
+  @media (max-width:520px) { .grid { grid-template-columns:1fr; } }
+  .risk { display:flex; align-items:center; gap:8px; font-size:13px; color:#9aa3b5; margin-top:16px; cursor:pointer; }
+  .risk input { width:15px; height:15px; accent-color:#ef6b6b; }
+  .risknote { display:none; margin-top:8px; font-size:12px; color:#ef6b6b; line-height:1.6; }
+  .risknote.on { display:block; }
+  .form .go:disabled { opacity:.4; cursor:not-allowed; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">陪<span>跑</span></div>
+    <div class="sub" id="week">第 1 周</div>
+
+    <div class="goal">当前体重</div>
+    <div class="big" id="cur">--<em>kg</em></div>
+    <div class="bar"><i id="barfill"></i></div>
+    <div class="pct"><span id="prog">0%</span><span id="remain">还差 -- kg</span></div>
+
+    <div class="card"><div class="k">今天已吃</div><div class="v" id="eaten">0 <small>大卡</small></div></div>
+    <div class="card"><div class="k">还剩额度</div><div class="v" id="left">--</div></div>
+    <div class="card"><div class="k">蛋白</div><div class="v" id="prot">0 / 0 <small>g</small></div></div>
+    <div class="card"><div class="k">称重</div><div class="v" id="weigh">--</div></div>
+  </aside>
+
+  <section class="main">
+    <div class="topbar">今天吃了什么、练了什么，直接说。</div>
+    <div class="chat" id="chat">
+      <div class="hint">试着说：「中午食堂两荤一素」<br>或者说：「76.8」记一次体重</div>
+    </div>
+    <div class="composer">
+      <div class="box">
+        <button class="plus" id="plus" title="发图片">+</button>
+        <textarea id="inp" rows="1" placeholder="说一句…"></textarea>
+        <button class="send" id="send">发送</button>
+      </div>
+      <div class="foot">记录与估算工具，不是医疗建议。所有数值为估算。</div>
+    </div>
+  </section>
+</div>
+
+<div class="gate__GATE__" id="gate">
+  <form class="form" id="pf">
+    <h2>先填四个数</h2>
+    <p class="s">填完才算得出你的热量区间。后面随时能改。</p>
+    <div class="grid">
+      <div class="fld"><label>身高 cm</label><input id="f_h" type="number" step="0.1" required placeholder="175"></div>
+      <div class="fld"><label>体重 kg</label><input id="f_w" type="number" step="0.1" required placeholder="78"></div>
+      <div class="fld"><label>年龄</label><input id="f_a" type="number" required placeholder="20"></div>
+      <div class="fld"><label>性别</label><select id="f_s"><option value="m">男</option><option value="f">女</option></select></div>
+      <div class="fld"><label>目标体重 kg（可不填）</label><input id="f_t" type="number" step="0.1" placeholder="按 BMI 22 自动算"></div>
+      <div class="fld"><label>日常活动</label><select id="f_act"><option>久坐</option><option selected>轻度</option><option>中等</option><option>很活跃</option></select></div>
+      <div class="fld"><label>每周能练几次</label><select id="f_d"><option>0</option><option>1-2</option><option selected>3-4</option><option>5+</option></select></div>
+      <div class="fld"><label>常做的运动（可不填）</label><input id="f_way" placeholder="徒手 / 跑步 / 哑铃"></div>
+      <div class="fld"><label>单位</label><select id="f_u"><option selected>公斤</option><option>斤</option></select></div>
+    </div>
+    <label class="risk"><input type="checkbox" id="f_risk"> 我有基础疾病 / 在服药 / 有进食障碍史</label>
+    <div class="risknote" id="risknote">勾选后不能开始。这类情况请先问医生，本工具不适用。</div>
+    <button class="go" type="submit" id="go">开始</button>
+    <div class="note">只存本机。不是医疗建议；有基础疾病或伤，先去问医生。</div>
+  </form>
+</div>
+
+<script>
+var $ = function (id) { return document.getElementById(id); };
+var chat = $('chat'), inp = $('inp'), send = $('send');
+
+function bubble(text, who) {
+  var d = document.createElement('div');
+  d.className = 'msg ' + who;
+  d.textContent = text;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function paint(s) {
+  if (!s) return;
+  $('week').textContent = '第 ' + s.week + ' 周';
+  $('cur').innerHTML = s.current_kg + '<em>kg</em>';
+  var p = Math.round((s.progress || 0) * 100);
+  $('barfill').style.width = Math.max(2, p) + '%';
+  $('prog').textContent = p + '%';
+  $('remain').textContent = '还差 ' + Math.max(0, s.remain_kg) + ' kg 到 ' + s.target_kg;
+
+  $('eaten').innerHTML = s.eaten + ' <small>/ ' + s.kcal_lo + '-' + s.kcal_hi + ' 大卡</small>';
+
+  var el = $('left');
+  el.textContent = s.remaining_lo + ' ~ ' + s.remaining_hi + ' 大卡';
+  el.className = 'v ' + (s.remaining_lo > 600 ? 'ok' : (s.remaining_lo > 200 ? 'warn' : 'bad'));
+
+  $('prot').innerHTML = s.protein + ' / ' + s.protein_target + ' <small>g</small>';
+  $('prot').className = 'v ' + (s.protein_gap <= 0 ? 'ok' : 'warn');
+
+  $('weigh').innerHTML = s.weighs + ' 次记录 <small>· 每 ' + s.weigh_interval + ' 天</small>';
+  $('gate').classList.toggle('on', !s.profile_complete);
+}
+
+function renderHistory(list) {
+  if (!list || !list.length) return;
+  chat.innerHTML = '';
+  list.forEach(function (m) {
+    bubble(m.text, m.role === 'user' ? 'user' : 'bot');
+  });
+}
+
+function load() {
+  fetch('/api/state').then(function (r) { return r.json(); }).then(function (s) {
+    paint(s);
+    renderHistory(s.messages);
+  });
+}
+
+function typing() {
+  var d = document.createElement('div');
+  d.className = 'msg bot typing';
+  d.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="tip">思考中</span>';
+  chat.appendChild(d); chat.scrollTop = chat.scrollHeight;
+  return d;
+}
+
+async function submit() {
+  var text = inp.value.trim();
+  if (!text) return;
+  inp.value = ''; inp.style.height = 'auto';
+  bubble(text, 'user');
+  send.disabled = true;
+  var wait = typing();
+  var slow = setTimeout(function () {
+    var tip = wait.querySelector('.tip');
+    if (tip) tip.textContent = '还在算，模型在生成…';
+  }, 6000);
+  try {
+    var r = await fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text })
+    });
+    var d = await r.json();
+    wait.remove();
+    bubble(d.reply, 'bot');
+    paint(d.state);
+  } catch (e) {
+    wait.remove();
+    bubble('连不上后台，看看服务还在不在。', 'bot');
+  }
+  clearTimeout(slow);
+  send.disabled = false;
+  inp.focus();
+}
+
+send.onclick = submit;
+inp.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
+});
+inp.addEventListener('input', function () {
+  inp.style.height = 'auto';
+  inp.style.height = Math.min(120, inp.scrollHeight) + 'px';
+});
+$('plus').onclick = function () {
+  bubble('当前模型不支持图片识别，用一句话说说吃了什么就行。', 'bot');
+};
+$('f_risk').addEventListener('change', function () {
+  var on = this.checked;
+  $('risknote').classList.toggle('on', on);
+  $('go').disabled = on;
+});
+
+$('pf').addEventListener('submit', async function (ev) {
+  ev.preventDefault();
+  var body = {
+    height_cm: +$('f_h').value, weight_kg: +$('f_w').value, age: +$('f_a').value,
+    sex: $('f_s').value, activity: $('f_act').value, days_per_week: $('f_d').value,
+    workout_way: $('f_way').value, unit: $('f_u').value,
+    target_kg: $('f_t').value ? +$('f_t').value : null
+  };
+  var r = await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  var d = await r.json();
+  $('gate').classList.remove('on');
+  paint(d.state);
+  bubble('资料记下了。\n' +
+         '热量区间 ' + d.state.kcal_lo + '~' + d.state.kcal_hi + ' 大卡，蛋白 ' + d.state.protein_target + 'g。\n' +
+         '目标 ' + d.state.target_kg + ' kg（现在 ' + d.state.current_kg + '，还差 ' + d.state.remain_kg + '）。\n' +
+         '想改目标直接说「目标改成 75」。', 'bot');
+});
+
+load();
+</script>
+</body>
+</html>

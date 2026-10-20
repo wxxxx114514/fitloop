@@ -1,0 +1,127 @@
+[
+  {
+    "id": 1,
+    "scene": "meal",
+    "foods": [
+      "无油番茄炖鸡"
+    ],
+    "grams": null,
+    "hard": false,
+    "note": "自己照食谱做的，无油；模型要能听出「无油」这个条件"
+  },
+  {
+    "id": 2,
+    "scene": "shelf",
+    "foods": [
+      "超市烤鸡"
+    ],
+    "grams": null,
+    "hard": false,
+    "note": "货架，不进记录"
+  },
+  {
+    "id": 3,
+    "scene": "shelf",
+    "foods": [
+      "西瓜",
+      "橙子",
+      "青枣"
+    ],
+    "grams": null,
+    "hard": false,
+    "note": "货架"
+  },
+  {
+    "id": 4,
+    "scene": "product",
+    "foods": [
+      "五香卤肥肠"
+    ],
+    "grams": 500,
+    "hard": false,
+    "note": "标签写明 500g/包、固形物50%，份量不用问"
+  },
+  {
+    "id": 5,
+    "scene": "meal",
+    "foods": [
+      "白灼虾"
+    ],
+    "grams": null,
+    "hard": false,
+    "note": "旁边那碗是虾壳，不能算成第二份"
+  },
+  {
+    "id": 6,
+    "scene": "shelf",
+    "foods": [
+      "火龙果"
+    ],
+    "grams": null,
+    "hard": true,
+    "note": "★ 果肉被价签挡住，我认成了哈密瓜+甜瓜。视觉模型必错，而且会很自信"
+  },
+  {
+    "id": 7,
+    "scene": "meal",
+    "foods": [
+      "卤兔肉"
+    ],
+    "grams": null,
+    "hard": true,
+    "note": "★ 看着就是鸡，实际是烧兔。人也要靠你说才知道"
+  },
+  {
+    "id": 8,
+    "scene": "shelf",
+    "foods": [
+      "哈密瓜"
+    ],
+    "grams": null,
+    "hard": false,
+    "note": "货架"
+  },
+  {
+    "id": 9,
+    "scene": "shelf",
+    "foods": [
+      "卤鸡",
+      "花生",
+      "毛豆"
+    ],
+    "grams": null,
+    "hard": false,
+    "note": "货架"
+  },
+  {
+    "id": 10,
+    "scene": "meal",
+    "foods": [
+      "红烧肉"
+    ],
+    "grams": null,
+    "hard": true,
+    "note": "★ 器具是高压电饭煲，不是空气炸锅。场景认错会连带影响份量判断"
+  },
+  {
+    "id": 11,
+    "scene": "product",
+    "foods": [
+      "香蕉"
+    ],
+    "grams": 1140,
+    "hard": false,
+    "note": "标签 1.14kg，克重精确"
+  },
+  {
+    "id": 12,
+    "scene": "shelf",
+    "foods": [
+      "哈密瓜",
+      "甜瓜"
+    ],
+    "grams": null,
+    "hard": false,
+    "note": "货架"
+  }
+]
