@@ -6,4 +6,4 @@ graph.db
 graph.db-*
 .env
 .venv/
-*.log
+*.log.dayoffset

@@ -369,3 +369,11 @@ def weight_sane(kg, ref_kg):
     if ref_kg and abs(kg - ref_kg) > 0.25 * ref_kg:
         return False, f"和上次 {ref_kg:g} kg 差了 {abs(kg - ref_kg):.1f} kg，一次称重不该差这么多，确认一下"
     return True, None
+
+def day_key(dt, start_hour=4):
+    """「一天」的边界不放在午夜，放在凌晨 4 点。
+    凌晨 3 点吃的那顿算昨天，不会被当成新一天的第一顿饭。"""
+    import datetime as _dt
+    if dt.hour < start_hour:
+        dt = dt - _dt.timedelta(days=1)
+    return dt.date().isoformat()

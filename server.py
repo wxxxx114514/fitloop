@@ -90,6 +90,19 @@ def index():
     return HTMLResponse(html.replace("__GATE__", cls))
 
 
+@api.get("/api/debug/advance")
+def debug_advance(days: int = 1):
+    """测试用：假装过了 days 天，下次打开就会触发跨天（压缩 + 清空对话）。"""
+    engine.set_day_offset(engine.day_offset() + days)
+    return {"offset": engine.day_offset(), "today": engine.now_day(), "state": snapshot()}
+
+
+@api.get("/api/debug/reset_clock")
+def debug_reset_clock():
+    engine.set_day_offset(0)
+    return {"offset": 0, "today": engine.now_day(), "state": snapshot()}
+
+
 @api.get("/api/state")
 def state():
     return snapshot()

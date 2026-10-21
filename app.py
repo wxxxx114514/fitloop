@@ -76,8 +76,24 @@ QUERY_SYS = '''你是减脂陪跑。用户问某样东西能不能吃/合不合�
 必须结合今天的剩余额度来答，不要泛泛而谈。不要说"你应该"。'''
 
 # ---------------- 存档 ----------------
+OFFSET_FILE = os.path.join(HERE, ".dayoffset")
+
+
+def day_offset():
+    """测试用：假装过了几天。0 表示真实日期。"""
+    try:
+        return int(open(OFFSET_FILE).read().strip() or "0")
+    except Exception:
+        return 0
+
+
+def set_day_offset(n):
+    open(OFFSET_FILE, "w").write(str(int(n)))
+
+
 def now_day():
-    return datetime.date.today().isoformat()
+    """按凌晨 4 点切天，不按午夜。支持测试用的日期偏移。"""
+    return core.day_key(datetime.datetime.now() + datetime.timedelta(days=day_offset()))
 
 def init_db():
     con = sqlite3.connect(DB)

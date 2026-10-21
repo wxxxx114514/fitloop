@@ -156,4 +156,10 @@ eq(find_item(items, "第2条"), 1, "第2条")
 eq(find_item(items, "2"), 1, "纯数字")
 eq(find_item(items, "第9条"), None, "序号越界")
 
+# ---- 一天的边界在凌晨 4 点 ----
+import datetime as _d
+eq(day_key(_d.datetime(2026, 10, 20, 3, 30)), "2026-10-19", "凌晨 3 点半算昨天")
+eq(day_key(_d.datetime(2026, 10, 20, 4, 0)), "2026-10-20", "4 点整算今天")
+eq(day_key(_d.datetime(2026, 10, 20, 23, 0)), "2026-10-20", "晚上算今天")
+
 print(f"ALL PASS  ({n} assertions)")
