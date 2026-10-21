@@ -44,30 +44,30 @@
 ## 怎么跑
 
 ```bash
-uv venv .venv --python 3.13              # 需要 Python 3.13；没有 uv 就 python -m venv .venv
-uv pip install -r requirements.txt       # 没有 uv 就 pip install -r requirements.txt
+uv sync                      # 读 pyproject.toml + uv.lock，解释器用 3.13
 echo "FITLOOP_API_KEY=sk-你的key" > .env
-python server.py          # 端口默认 8791，可用 FITLOOP_PORT 改
+uv run python server.py      # 端口默认 8791，可用 FITLOOP_PORT 改
 # 打开 http://127.0.0.1:8791
 ```
 
-本仓库没有 `pyproject.toml`，所以走 `uv pip install -r requirements.txt`；
-`uv sync` 需要 `pyproject.toml` + `uv.lock`（另一门课程工程那套才有）。
-仓库外的 `.pylibs`（若存在）会被 `app.py` 自动加到 `sys.path`，那是本机离线包目录，
-里面的轮子是 **cp313**，所以解释器必须是 Python 3.13。
+没有 uv 就 `pip install -r requirements.txt`（依赖清单与 `pyproject.toml` 一致）。
+仓库外的 `.pylibs` 只作**兜底**：`app.py` 先试 `import openai`，失败才把它加进 `sys.path`；
+那里面的轮子是 cp313，所以走回退模式时解释器必须是 Python 3.13。
 
 第一次打开会让你填身高体重年龄，然后给出建议目标。
 
 ## 测试
 
 ```bash
-uv run python test_core.py      # 110 条断言，不调模型
-python test_plan_rules.py test_resolve.py test_trend.py   # 24 + 13 + 11
-python test_app.py       # 5 条：归档、回查、训练落库（用临时库，不碰 data.db）
+uv run python test_core.py        # 110 条断言，不调模型
+uv run python test_plan_rules.py  # 24 条
+uv run python test_resolve.py     # 13 条
+uv run python test_trend.py       # 11 条
+uv run python test_app.py         # 5 条：归档 / 回查 / 训练落库（临时库，不碰 data.db）
 # 五套合计 163 条
-python check_ui.py       # 页面自检：语法 + 元素 + 字段对齐
-python eval/run_parse.py # 19 条解析评测，会调模型（约 19 次调用）
-                        # 当前：拆对 17/19、追问 18/19、漏拆 0、多拆 2
+uv run python check_ui.py         # 页面自检：语法 + 元素 + 字段对齐
+uv run python eval/run_parse.py   # 19 条解析评测，会调模型（约 19 次调用）
+                                  # 当前：拆对 17/19、追问 18/19、漏拆 0、多拆 2
 ```
 
 ## 素材
