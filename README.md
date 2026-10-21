@@ -36,7 +36,7 @@
 | 打断 | 1 个 `wait_event` | **2 个**：`wait`（等输入）+ `clarify`（追问份量） |
 | 事件路由 | LLM 用 `Command(goto=)` 选边 | **代码判定**，模型只给 `needs_clarify` 标志 |
 | 医疗 | L0–L3 四级分级 | **命中即停**，不分级，话术由代码输出 |
-| 负荷 | `load_level` / `escalate` 参与判档 | 函数与单测已就位，**未接入**：train 事件只回一句占位 |
+| 负荷 | `load_level` / `escalate` 参与判档 | **已接入**：train 落 state（分钟 + RPE），结算时算周负荷并跑 `escalate` |
 | 评测 | 60 条混淆矩阵 + 14 天使用 | 19 条解析评测集；`eval/run_parse.py` 缺 `import os`，当前跑不起来，无分数 |
 
 判断口径：**已实现 ≠ 已生效**。上表右列是代码里真实存在并会被调用的路径。
@@ -55,8 +55,8 @@ python server.py          # 端口默认 8791，可用 FITLOOP_PORT 改
 ## 测试
 
 ```bash
-python test_core.py      # 95 条断言，不调模型
-python test_plan_rules.py test_resolve.py test_trend.py   # 24 + 13 + 11 条，四套合计 143 条
+python test_core.py      # 107 条断言，不调模型
+python test_plan_rules.py test_resolve.py test_trend.py   # 24 + 13 + 11 条，四套合计 155 条
 python check_ui.py       # 页面自检：语法 + 元素 + 字段对齐
 python eval/run_parse.py # 19 条解析评测，会调模型（当前缺 import os，需先修）
 ```
