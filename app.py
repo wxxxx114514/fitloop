@@ -41,11 +41,24 @@ def _json_call(system, user, max_tokens=400):
                        {"role": "user", "content": user}], max_tokens)
 
 
-def _json_msgs(messages, max_tokens=400):
-    r = _client().chat.completions.create(
-        model="deepseek-chat", temperature=0, max_tokens=max_tokens,
-        messages=messages, response_format={"type": "json_object"})
-    return json.loads(r.choices[0].message.content)
+def _json_msgs(messages, max_tokens=400, tries=2):
+    """模型返回坏 JSON 时重试一次；还不行返回 {"_error": ...}，不抛异常把请求打断。"""
+    last = "未知错误"
+    for _ in range(tries):
+        r = _client().chat.completions.create(
+            model="deepseek-chat", temperature=0, max_tokens=max_tokens,
+            messages=messages, response_format={"type": "json_object"})
+        raw = (r.choices[0].message.content or "").strip()
+        try:
+            d = json.loads(raw)
+        except json.JSONDecodeError:
+            last = "模型返回的不是 JSON"
+            continue
+        if not isinstance(d, dict):
+            last = "模型返回的不是对象"
+            continue
+        return d
+    return {"_error": last}
 
 
 def _history(st, limit=60):
@@ -124,7 +137,8 @@ def load():
         old = st["day"]
         if old.get("items") or old.get("sleep_h"):
             arch = st.setdefault("archive", {})
-            arch[old["date"]] = old.get("items", [])          # 明细按天留，能回查
+            arch[old["date"]] = {"items": old.get("items", []),   # 明细按天留，能回查
+                                 "sleep_h": old.get("sleep_h")}
             for k in list(arch)[:-120]:
                 arch.pop(k, None)
             st.setdefault("summaries", []).append(core.compress_day(old))
@@ -187,7 +201,8 @@ def do_eat(st, ev):
     st.setdefault("sodium_by_date", {})[d0["date"]] = d0["sodium"]
     d = core.combine(st["day"]["items"])
     lo, hi = st["plan"]["kcal_range"]
-    rem_lo = max(0, lo - d["hi"]); rem_hi = max(0, hi - d["lo"])
+    rem = core.remaining(d["lo"], d["hi"], lo, hi)
+    rem_lo, rem_hi = rem["left_lo"], rem["left_hi"]
     gap = core.protein_gap(st["plan"]["protein_g"], d["protein_g"])
     head = ("改掉了「" + (ev.get("target") or "上一条") + "」，现在按这个算：") if amended else "记下了："
     out = [f"{head}{ev.get('desc','')} ≈ {est['kcal']} 大卡（{est['lo']}~{est['hi']}）"]
@@ -220,6 +235,9 @@ def do_train(st, ev, text=""):
     """训练记录必须落到 state，否则 escalate 永远是死代码。"""
     src = (ev.get("desc") or "") + " " + (text or "")
     mins = core.parse_minutes(src)
+    ok, why = core.minutes_sane(mins)
+    if not ok:
+        return f"没收这一条训练：{why}。重报一次？"
     tr = st.setdefault("training", {})
     today = now_day()
     cur = dict(tr.get(today) or {"minutes": 0, "rpe": 6})
@@ -243,6 +261,16 @@ def do_train(st, ev, text=""):
     return "\n".join(out)
 
 
+def do_special(st, ev):
+    """情绪类输入要接住，不能落到「没太听懂」。"""
+    said = (ev.get("desc") or "") + (ev.get("why") or "")
+    low = ("累", "烦", "不想", "没忍住", "放弃", "崩溃", "失败")
+    if any(w in said for w in low):
+        st["day"]["mood"] = "low"
+        return ("先不聊计划。\n今天能记多少记多少，明天重新开始，不用补昨天的账。")
+    return "记下了。今天按原计划走，别加码。"
+
+
 def do_recall(st, text):
     """查某一天的记录。明细在 archive 里，老数据只剩摘要。"""
     import datetime as _dt
@@ -250,10 +278,13 @@ def do_recall(st, text):
     d = core.month_day(text, today)
     if not d:
         return "没听出是哪天。说个日期，比如「10月18日」或「昨天」。"
-    items = (st.get("archive") or {}).get(d)
-    if items:
-        rows = "\n".join(f"- {i.get('desc')} ≈ {i.get('kcal')} 卡" for i in items)
-        return f"{d} 记的：\n{rows}"
+    rec = (st.get("archive") or {}).get(d)
+    if isinstance(rec, list):            # 兼容早期只存列表的格式
+        rec = {"items": rec, "sleep_h": None}
+    if rec and rec.get("items"):
+        rows = "\n".join(f"- {i.get('desc')} ≈ {i.get('kcal')} 卡" for i in rec["items"])
+        extra = f"\n（那晚睡 {rec['sleep_h']:g} 小时）" if rec.get("sleep_h") else ""
+        return f"{d} 记的：\n{rows}{extra}"
     summ = [x for x in st.get("summaries", []) if x.get("date") == d]
     if summ:
         s = summ[0]
@@ -265,7 +296,8 @@ def today_summary(st):
     """问"我吃了多少"这种，直接查数，别让模型猜。"""
     d = core.combine(st["day"]["items"])
     lo, hi = st["plan"]["kcal_range"]
-    rem_lo, rem_hi = max(0, lo - d["hi"]), max(0, hi - d["lo"])
+    rem = core.remaining(d["lo"], d["hi"], lo, hi)
+    rem_lo, rem_hi = rem["left_lo"], rem["left_hi"]
     gap = core.protein_gap(st["plan"]["protein_g"], d["protein_g"])
     n = len(st["day"]["items"])
     line = f"今天记了 {n} 条，合计约 {d['kcal']:.0f} 大卡（区间 {d['lo']:.0f}~{d['hi']:.0f}）。\n"
@@ -278,7 +310,8 @@ def today_summary(st):
 def do_query(st, target):
     d = core.combine(st["day"]["items"])
     lo, hi = st["plan"]["kcal_range"]
-    rem_lo = max(0, lo - d["hi"]); rem_hi = max(0, hi - d["lo"])
+    rem = core.remaining(d["lo"], d["hi"], lo, hi)
+    rem_lo, rem_hi = rem["left_lo"], rem["left_hi"]
     gap = core.protein_gap(st["plan"]["protein_g"], d["protein_g"])
     facts = (f"目标对象：{target}；今天已吃 {d['kcal']:.0f} 卡；"
              f"剩余额度 {rem_lo:.0f}~{rem_hi:.0f}；蛋白还差 {gap:.0f}g")
@@ -293,6 +326,8 @@ def handle(text, st):
         return core.MEDICAL_STOP
 
     p = parse(text)
+    if p.get("_error"):
+        return f"我这条没解析出来（{p['_error']}），换个说法再来一次？"
     out = []
     events = p.get("events", [])
     if p.get("needs_clarify") and any(e.get("kind") != "query" for e in events):
@@ -314,6 +349,27 @@ def handle(text, st):
             out.append(do_train(st, ev, text))
         elif kind == "recall":
             out.append(do_recall(st, (ev.get("desc") or "") + " " + text))
+        elif kind == "sleep":
+            h = core.parse_hours(ev.get("desc") or text)
+            if h is None:
+                out.append("没听到几个小时，比如「昨晚睡了五个半小时」？")
+            else:
+                st["day"]["sleep_h"] = h
+                st.setdefault("sleep", []).append(h)
+                gate = core.sleep_gate(h, st["sleep"])
+                out.append(gate["text"] or f"记下 {h:g} 小时，睡眠够，训练照常。")
+        elif kind == "goal":
+            import re as _re
+            m = _re.search(r"(\d+(?:\.\d+)?)", text)
+            if not m:
+                out.append("没听到数字，比如「目标改成 75」。")
+            else:
+                kg = float(m.group(1))
+                st["profile"]["target_kg"] = kg
+                cur = st["weights"][-1][1] if st["weights"] else st["profile"].get("start_kg")
+                out.append(f"目标改成 {kg:g} kg。现在 {cur:g}，还差 {round(cur - kg, 1)} kg。")
+        elif kind == "special":
+            out.append(do_special(st, ev))
         elif kind == "query":
             t = resolve.resolve_target(ev.get("desc") or "这个", [i["desc"] for i in st["day"]["items"] if i.get("desc")])
             if resolve.should_ask(t):

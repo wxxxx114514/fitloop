@@ -380,6 +380,19 @@ def day_key(dt, start_hour=4):
 
 # ---------------- 训练负荷：真正接上 escalate 的那条链 ----------------
 
+MINUTES_CAP = 300          # 单次训练上限，超过就不像真的了
+
+
+def minutes_sane(v):
+    if v is None:
+        return True, None
+    if v <= 0:
+        return False, "时长是 0"
+    if v > MINUTES_CAP:
+        return False, f"{v} 分钟太长了，超过 {MINUTES_CAP} 分钟不像单次训练"
+    return True, None
+
+
 def parse_minutes(text):
     """从「跑了30分钟」「练了一个半小时」「1.5小时」里抠出分钟数。"""
     import re

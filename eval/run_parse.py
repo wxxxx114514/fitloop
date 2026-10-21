@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys, json
+import sys, json, os
 _LIBS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.pylibs')
 if os.path.isdir(_LIBS):
     sys.path.insert(0, _LIBS)   # 本地离线包目录，没有就跳过（别人克隆下来走 pip）

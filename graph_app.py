@@ -45,11 +45,14 @@ def node_parse(state: S):
 
     p = engine.parse(text, engine.load())
     ev = p.get("events", [])
+    if p.get("_error"):
+        return Command(goto="handle", update={"events": [], "bad_json": True})
+
     asks = state.get("asks", 0)
     need = p.get("needs_clarify") and any(e.get("kind") != "query" for e in ev) and asks < 2
     if need:
         return Command(goto="clarify", update={"events": ev, "asks": asks + 1})
-    return Command(goto="handle", update={"events": ev})
+    return Command(goto="handle", update={"events": ev, "reply": ""})
 
 
 def node_clarify(state: S):
@@ -60,6 +63,8 @@ def node_clarify(state: S):
 def node_handle(state: S):
     st = engine.load()
     out = []
+    if state.get("bad_json"):
+        out.append("我这条没解析出来，换个说法再来一次？")
     for ev in state.get("events", []):
         kind = ev.get("kind")
         if kind == "eat":
@@ -81,6 +86,8 @@ def node_handle(state: S):
                 out.append(engine.do_train(st, ev, state.get("incoming", "")))
         elif kind == "recall":
             out.append(engine.do_recall(st, (ev.get("desc") or "") + " " + (state.get("incoming") or "")))
+        elif kind == "special":
+            out.append(engine.do_special(st, ev))
         elif kind == "goal":
             import re
             m = re.search(r"(\d+(?:\.\d+)?)", state.get("incoming", ""))
@@ -129,7 +136,7 @@ def node_handle(state: S):
     st["messages"].append({"role": "bot", "text": reply, "at": now})
     st["messages"] = st["messages"][-200:]
     engine.save(st)
-    return {"reply": reply, "asks": 0}
+    return {"reply": reply, "asks": 0, "bad_json": False}
 
 
 def node_handoff(state: S):

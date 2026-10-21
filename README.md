@@ -55,8 +55,10 @@ python server.py          # 端口默认 8791，可用 FITLOOP_PORT 改
 ## 测试
 
 ```bash
-python test_core.py      # 107 条断言，不调模型
-python test_plan_rules.py test_resolve.py test_trend.py   # 24 + 13 + 11 条，四套合计 155 条
+python test_core.py      # 110 条断言，不调模型
+python test_plan_rules.py test_resolve.py test_trend.py   # 24 + 13 + 11
+python test_app.py       # 5 条：归档、回查、训练落库（用临时库，不碰 data.db）
+# 五套合计 163 条
 python check_ui.py       # 页面自检：语法 + 元素 + 字段对齐
 python eval/run_parse.py # 19 条解析评测，会调模型（当前缺 import os，需先修）
 ```

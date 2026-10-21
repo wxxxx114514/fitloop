@@ -185,4 +185,9 @@ eq(month_day("10月18日", T), "2026-10-18", "月日")
 eq(month_day("2026-10-01", T), "2026-10-01", "完整日期")
 eq(month_day("上周", T), None, "认不出")
 
+# ---- 训练时长上限 ----
+eq(minutes_sane(90)[0], True, "90 分钟正常")
+eq(minutes_sane(600)[0], False, "10 小时挡掉")
+eq(minutes_sane(None)[0], True, "没说时长不挡")
+
 print(f"ALL PASS  ({n} assertions)")
