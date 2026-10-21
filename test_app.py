@@ -2,9 +2,12 @@
 """do_train / do_recall / 归档 的测试。用临时库，不碰 data.db。"""
 import sys, os, datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-_LIBS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.pylibs')
-if os.path.isdir(_LIBS):
-    sys.path.insert(0, _LIBS)
+try:
+    import openai  # noqa: F401
+except ModuleNotFoundError:
+    _LIBS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.pylibs')
+    if os.path.isdir(_LIBS):
+        sys.path.insert(0, _LIBS)
 import app as engine
 import core
 

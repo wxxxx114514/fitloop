@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 import sys, json, os
-_LIBS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.pylibs')
-if os.path.isdir(_LIBS):
-    sys.path.insert(0, _LIBS)   # 本地离线包目录，没有就跳过（别人克隆下来走 pip）
+# 依赖优先用 uv/pip 装好的；只有在装不上时，才回退到本地的 .pylibs 离线目录
+try:
+    import openai  # noqa: F401
+except ModuleNotFoundError:
+    _LIBS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.pylibs')
+    if os.path.isdir(_LIBS):
+        sys.path.insert(0, _LIBS)
 from openai import OpenAI
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
