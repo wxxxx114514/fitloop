@@ -5,7 +5,9 @@ import sys, os, json, sqlite3, datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-sys.path.insert(0, r'D:\project\.pylibs')
+_LIBS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.pylibs')
+if os.path.isdir(_LIBS):
+    sys.path.insert(0, _LIBS)   # 本地离线包目录，没有就跳过（别人克隆下来走 pip）
 
 import core, resolve, trend as trend_mod
 from openai import OpenAI
