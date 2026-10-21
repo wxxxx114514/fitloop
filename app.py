@@ -13,7 +13,7 @@ except ModuleNotFoundError:
     if os.path.isdir(_LIBS):
         sys.path.insert(0, _LIBS)
 
-import core, resolve, trend as trend_mod
+import core, resolve, plan_rules, trend as trend_mod
 from openai import OpenAI
 
 DB = os.path.join(HERE, "data.db")
@@ -256,6 +256,11 @@ def do_train(st, ev, text=""):
     sessions, week, streak = core.load_snapshot(tr, today)
     lvl, why = core.load_level(sessions, week, streak)
     out = [f"记下训练 {cur['minutes']} 分钟（今天）。本周共 {week} 分钟。"]
+    hint = core.deload_hint(sessions_7d=len(sessions), rpe_now=cur.get("rpe"),
+                            rpe_prev=st.get("last_rpe"), completion=st.get("completion"))
+    st["last_rpe"] = cur.get("rpe")
+    if hint:
+        out.append(hint)
     if lvl == "high":
         out.append("负荷偏高，注意恢复。")
     elif lvl == "excessive":
@@ -263,6 +268,22 @@ def do_train(st, ev, text=""):
     else:
         out.append("负荷正常。")
     return "\n".join(out)
+
+
+def free_meal_status(st):
+    """自由餐解锁：进度 → 档位 → 下次间隔。之前这条链全是死代码。"""
+    import datetime as _dt
+    p = st.get("profile", {})
+    start, target = p.get("start_kg"), p.get("target_kg")
+    cur = st["weights"][-1][1] if st.get("weights") else start
+    if not start or not target or start == target:
+        return None
+    pl = plan_rules.progress_lower(start, target, cur)
+    lv = plan_rules.apply_hysteresis(st.get("unlock_level", 0), pl)
+    st["unlock_level"] = lv                       # 只升不降
+    sd = _dt.date.fromisoformat(st["start_date"])
+    day_index = (_dt.date.today() - sd).days + 1
+    return plan_rules.free_meal_plan(day_index, lv)
 
 
 def do_special(st, ev):
@@ -389,6 +410,9 @@ def handle(text, st):
             lvl, why_lvl = core.load_level(sessions, week, streak)
             b, why2 = core.escalate(b, lvl)
             out.append(f"今天结算：{b}" + (f"（{why2 or why or r.get('why') or ''}）" if (why2 or why or r.get("why")) else ""))
+            fm = free_meal_status(st)
+            if fm and fm.get("interval"):
+                out.append(f"下次自由餐：{fm['interval']} 天后" + ("（带一个碳水日）" if fm.get("carb_day") else ""))
     return "\n".join(out) if out else "没太听懂，换种说法？"
 
 def main():

@@ -308,15 +308,6 @@ def water_weight_hint(delta_kg, sodium_mg, high=SODIUM_HIGH):
             f"多半是水，三五天会自己回去，别拿它改计划。")
 
 
-def sodium_level(sodium_mg):
-    if sodium_mg is None:
-        return "unknown"
-    if sodium_mg >= 5000:
-        return "high"
-    if sodium_mg >= 3000:
-        return "medium"
-    return "low"
-
 # ---------------- 日压缩：一天压成一行 ----------------
 
 def compress_day(day):

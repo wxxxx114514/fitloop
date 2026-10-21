@@ -126,9 +126,6 @@ eq(water_weight_hint(0.8, 2000), None, "钠不高就不解释")
 eq(water_weight_hint(0.1, 5200), None, "只涨一点点不解释")
 eq(water_weight_hint(-0.6, 5200), None, "掉了不解释")
 eq(water_weight_hint(0.8, None), None, "没数据不解释")
-eq(sodium_level(5200), "high", "高钠")
-eq(sodium_level(3200), "medium", "中钠")
-eq(sodium_level(1500), "low", "低钠")
 
 # ---- 日压缩 ----
 d = compress_day({"date": "2026-10-20", "items": [{"kcal": 800, "protein_g": 40}, {"kcal": 600, "protein_g": 30}],
