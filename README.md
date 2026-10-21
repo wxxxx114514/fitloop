@@ -29,8 +29,8 @@
 ```bash
 pip install -r requirements.txt
 echo "FITLOOP_API_KEY=sk-你的key" > .env
-python server.py
-# 打开 http://127.0.0.1:8790
+python server.py          # 端口默认 8791，可用 FITLOOP_PORT 改
+# 打开 http://127.0.0.1:8791
 ```
 
 第一次打开会让你填身高体重年龄，然后给出建议目标。

@@ -122,10 +122,6 @@ def chat(body: ChatIn):
     return {"reply": reply, "state": snapshot()}
 
 if __name__ == "__main__":
-    import socket, uvicorn
-    # 自己建 socket 并开 SO_REUSEADDR：关掉再重启时，端口上残留的连接不会把新进程挡在门外
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("127.0.0.1", 8790))
-    sock.listen(128)
-    uvicorn.Server(uvicorn.Config(api, log_level="warning")).run(sockets=[sock])
+    import uvicorn
+    port = int(os.environ.get("FITLOOP_PORT", "8791"))
+    uvicorn.run(api, host="127.0.0.1", port=port, log_level="warning")
