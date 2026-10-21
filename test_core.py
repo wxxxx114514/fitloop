@@ -162,4 +162,27 @@ eq(day_key(_d.datetime(2026, 10, 20, 3, 30)), "2026-10-19", "凌晨 3 点半算�
 eq(day_key(_d.datetime(2026, 10, 20, 4, 0)), "2026-10-20", "4 点整算今天")
 eq(day_key(_d.datetime(2026, 10, 20, 23, 0)), "2026-10-20", "晚上算今天")
 
+# ---- 训练负荷 ----
+eq(parse_minutes("跑了30分钟"), 30, "30分钟")
+eq(parse_minutes("练了一个半小时"), 90, "一个半小时")
+eq(parse_minutes("1.5小时"), 90, "1.5 小时")
+eq(parse_minutes("练了"), None, "没说时长")
+import datetime as _dd
+T = _dd.date(2026, 10, 21)
+days = {"2026-10-21": {"minutes": 95, "rpe": 8},
+        "2026-10-20": {"minutes": 95, "rpe": 8},
+        "2026-10-19": {"minutes": 95, "rpe": 8},
+        "2026-10-18": {"minutes": 95, "rpe": 8}}
+s, total, streak = load_snapshot(days, T)
+eq((len(s), total), (1, 380), "今天的会话和一周总量")
+eq(streak, 4, "连续四天高负荷")
+eq(load_snapshot({"2026-10-21": {"minutes": 40, "rpe": 6}}, T)[2], 0, "轻量不算连续")
+
+# ---- 日期回查 ----
+eq(month_day("昨天", T), "2026-10-20", "昨天")
+eq(month_day("前天", T), "2026-10-19", "前天")
+eq(month_day("10月18日", T), "2026-10-18", "月日")
+eq(month_day("2026-10-01", T), "2026-10-01", "完整日期")
+eq(month_day("上周", T), None, "认不出")
+
 print(f"ALL PASS  ({n} assertions)")

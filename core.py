@@ -377,3 +377,74 @@ def day_key(dt, start_hour=4):
     if dt.hour < start_hour:
         dt = dt - _dt.timedelta(days=1)
     return dt.date().isoformat()
+
+# ---------------- 训练负荷：真正接上 escalate 的那条链 ----------------
+
+def parse_minutes(text):
+    """从「跑了30分钟」「练了一个半小时」「1.5小时」里抠出分钟数。"""
+    import re
+    t = text or ""
+    if "半小时" in t:
+        m = re.search(r"(\d+)\s*个半小时", t)
+        if m:
+            return int(m.group(1)) * 60 + 30
+        for cn, v in (("两", 2), ("二", 2), ("三", 3), ("一", 1)):
+            if cn + "个半小时" in t:
+                return v * 60 + 30
+        return 30
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(?:小时|h)", t)
+    if m:
+        return int(round(float(m.group(1)) * 60))
+    m = re.search(r"(\d+)\s*分钟", t)
+    if m:
+        return int(m.group(1))
+    return None
+
+
+def load_snapshot(days, today, lookback=7):
+    """days: {iso日期: {'minutes':int,'rpe':int}}，today 可以是 date 或 iso 字符串。
+    返回 (今天的训练列表, 近 7 天总分钟, 连续高负荷天数)。"""
+    import datetime as _dt
+    tday = _dt.date.fromisoformat(today) if isinstance(today, str) else today
+
+    d0 = days.get(tday.isoformat())
+    sessions = [{"minutes": d0.get("minutes", 0), "rpe": d0.get("rpe", 6)}] if d0 else []
+
+    total = 0
+    for i in range(lookback):
+        v = days.get((tday - _dt.timedelta(days=i)).isoformat())
+        if v:
+            total += int(v.get("minutes", 0))
+
+    streak = 0
+    for i in range(lookback):
+        v = days.get((tday - _dt.timedelta(days=i)).isoformat())
+        if not v:
+            break
+        mins = int(v.get("minutes", 0))
+        rpe = int(v.get("rpe", 6))
+        if mins >= HIGH_MINUTES or rpe * mins >= HIGH_RPE_MIN:
+            streak += 1
+        else:
+            break
+    return sessions, total, streak
+
+
+def month_day(text, today):
+    """把「昨天」「10月18日」「2026-10-18」变成 iso 日期，认不出返回 None。"""
+    import re
+    import datetime as _dt
+    t = (text or "").strip()
+    if "前天" in t:
+        return (today - _dt.timedelta(days=2)).isoformat()
+    if "昨天" in t or "昨日" in t:
+        return (today - _dt.timedelta(days=1)).isoformat()
+    if "今天" in t or "今日" in t:
+        return today.isoformat()
+    m = re.search(r"(\d{4})-(\d{1,2})-(\d{1,2})", t)
+    if m:
+        return f"{int(m.group(1)):04d}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+    m = re.search(r"(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]", t)
+    if m:
+        return f"{today.year:04d}-{int(m.group(1)):02d}-{int(m.group(2)):02d}"
+    return None

@@ -78,7 +78,9 @@ def node_handle(state: S):
             if gate["cap"] in ("none", "light"):
                 out.append("今天不适合练。" + gate["text"])
             else:
-                out.append("练的记下了（负荷计算还没接）。")
+                out.append(engine.do_train(st, ev, state.get("incoming", "")))
+        elif kind == "recall":
+            out.append(engine.do_recall(st, (ev.get("desc") or "") + " " + (state.get("incoming") or "")))
         elif kind == "goal":
             import re
             m = re.search(r"(\d+(?:\.\d+)?)", state.get("incoming", ""))
@@ -111,7 +113,11 @@ def node_handle(state: S):
             d = core.combine(st["day"]["items"])
             r = core.classify_day(d["lo"], d["hi"], *st["plan"]["kcal_range"])
             b, why = core.streak_adjust(r["bucket"], st["day"].get("low_days", 1))
-            out.append("今天结算：" + b + (f"（{why}）" if why else ""))
+            tr = st.get("training", {})
+            sessions, week, streak = core.load_snapshot(tr, engine.now_day())
+            lvl, why_lvl = core.load_level(sessions, week, streak)
+            b2, why2 = core.escalate(b, lvl)
+            out.append("今天结算：" + b2 + (f"（{why2 or why or ''}）" if (why2 or why) else ""))
 
     d = core.combine(st["day"]["items"])
     hint = core.distribution_hint(core.meal_stats(st["day"]["items"]))

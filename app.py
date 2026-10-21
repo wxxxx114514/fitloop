@@ -57,7 +57,7 @@ def _history(st, limit=60):
     return out
 
 PARSE_SYS = '''你是减脂记录解析器。把用户一句话解析成若干条记录，只输出 JSON。
-kind 只能是: eat / train / weigh / sleep / goal / special / query / end
+kind 只能是: eat / train / weigh / sleep / goal / recall / special / query / end
 slot 只能是: 早 / 午 / 晚 / 加餐 / 下午 / 空字符串
 desc: 这一条对应的原话片段
 skipped: true 表示说过但没做
@@ -68,7 +68,7 @@ op 只能省略或填 amend（改上一条）/ drop（删上一条）
 如果用户是在纠正前面记错的东西（"不是卤蛋""刚才那个算多了""早上那个玉米饼其实是两个"），
 就输出 op="amend"，desc 填纠正后的内容，target 填他在指哪一条（原话里的关键词，比如"玉米饼"）；
 只说"刚才那个"就留空 target。
-硬规则: 情绪/疲惫/想放弃 → special；受伤生病 → 只输出一条 special；纯提问 → query 且 query_target 填"这个"之类的原话；说睡了多久 → sleep，desc 保留原话；说要改目标体重 → goal；报体重 → weigh（weigh 永远不需要 needs_clarify）'''
+硬规则: 情绪/疲惫/想放弃 → special；受伤生病 → 只输出一条 special；纯提问 → query 且 query_target 填"这个"之类的原话；说睡了多久 → sleep，desc 保留原话；说要改目标体重 → goal；报体重 → weigh（weigh 永远不需要 needs_clarify）；问某一天吃过什么 → recall（desc 留日期原话）；说练了什么 → train（desc 留原话，有分钟数就带上 rpe 可省）'''
 
 EST_SYS = '''把这段饮食换算成热量和三大营养素，只输出 JSON。
 {"kcal":整数,"lo":整数,"hi":整数,"protein_g":整数,"carb_g":整数,"fat_g":整数,"sodium_mg":整数,"basis":"依据"}
@@ -123,6 +123,10 @@ def load():
     if st["day"].get("date") != now_day():
         old = st["day"]
         if old.get("items") or old.get("sleep_h"):
+            arch = st.setdefault("archive", {})
+            arch[old["date"]] = old.get("items", [])          # 明细按天留，能回查
+            for k in list(arch)[:-120]:
+                arch.pop(k, None)
             st.setdefault("summaries", []).append(core.compress_day(old))
             st["summaries"] = st["summaries"][-90:]
         st["messages"] = []          # 每天一遍新上下文，只留系统提示词
@@ -212,6 +216,51 @@ def do_weigh(st, kg):
         line += "\n" + hint
     return line
 
+def do_train(st, ev, text=""):
+    """训练记录必须落到 state，否则 escalate 永远是死代码。"""
+    src = (ev.get("desc") or "") + " " + (text or "")
+    mins = core.parse_minutes(src)
+    tr = st.setdefault("training", {})
+    today = now_day()
+    cur = dict(tr.get(today) or {"minutes": 0, "rpe": 6})
+    if mins:
+        cur["minutes"] += mins
+    try:
+        cur["rpe"] = int(ev.get("rpe") or cur.get("rpe") or 6)
+    except (TypeError, ValueError):
+        pass
+    tr[today] = cur
+
+    sessions, week, streak = core.load_snapshot(tr, today)
+    lvl, why = core.load_level(sessions, week, streak)
+    out = [f"记下训练 {cur['minutes']} 分钟（今天）。本周共 {week} 分钟。"]
+    if lvl == "high":
+        out.append("负荷偏高，注意恢复。")
+    elif lvl == "excessive":
+        out.append(f"负荷过量（{why}）。这周别再加了，安排一天完全休息。")
+    else:
+        out.append("负荷正常。")
+    return "\n".join(out)
+
+
+def do_recall(st, text):
+    """查某一天的记录。明细在 archive 里，老数据只剩摘要。"""
+    import datetime as _dt
+    today = _dt.date.fromisoformat(now_day())
+    d = core.month_day(text, today)
+    if not d:
+        return "没听出是哪天。说个日期，比如「10月18日」或「昨天」。"
+    items = (st.get("archive") or {}).get(d)
+    if items:
+        rows = "\n".join(f"- {i.get('desc')} ≈ {i.get('kcal')} 卡" for i in items)
+        return f"{d} 记的：\n{rows}"
+    summ = [x for x in st.get("summaries", []) if x.get("date") == d]
+    if summ:
+        s = summ[0]
+        return f"{d}：吃 {s['kcal']} 卡，{s['entries']} 条。那天的明细没留，只有合计。"
+    return f"{d} 这天没有记录。"
+
+
 def today_summary(st):
     """问"我吃了多少"这种，直接查数，别让模型猜。"""
     d = core.combine(st["day"]["items"])
@@ -262,7 +311,9 @@ def handle(text, st):
             else:
                 out.append("没看到数字，再报一次体重？")
         elif kind == "train":
-            out.append("练的记下了（负荷计算还没接）。")
+            out.append(do_train(st, ev, text))
+        elif kind == "recall":
+            out.append(do_recall(st, (ev.get("desc") or "") + " " + text))
         elif kind == "query":
             t = resolve.resolve_target(ev.get("desc") or "这个", [i["desc"] for i in st["day"]["items"] if i.get("desc")])
             if resolve.should_ask(t):
@@ -274,7 +325,10 @@ def handle(text, st):
             r = core.classify_day(d["lo"], d["hi"], *st["plan"]["kcal_range"])
             b, why = core.streak_adjust(r["bucket"], st["day"].get("low_days", 1))
             st["day"]["low_days"] = st["day"].get("low_days", 1) + (1 if b == "low" else 0)
-            out.append(f"今天结算：{b}" + (f"（{why or r.get('why') or ''}）" if (why or r.get("why")) else ""))
+            sessions, week, streak = core.load_snapshot(st.get("training", {}), now_day())
+            lvl, why_lvl = core.load_level(sessions, week, streak)
+            b, why2 = core.escalate(b, lvl)
+            out.append(f"今天结算：{b}" + (f"（{why2 or why or r.get('why') or ''}）" if (why2 or why or r.get("why")) else ""))
     return "\n".join(out) if out else "没太听懂，换种说法？"
 
 def main():
