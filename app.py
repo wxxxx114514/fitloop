@@ -193,6 +193,7 @@ def estimate(desc):
 
 def do_eat(st, ev):
     amended = False
+    idx = None
     if ev.get("op") == "amend":
         idx = core.find_item(st["day"]["items"], ev.get("target"))
         if idx is None:
@@ -200,13 +201,17 @@ def do_eat(st, ev):
                              for i, it in enumerate(st["day"]["items"]))
             return ("今天没找到「" + str(ev.get("target") or "") + "」这条。\n今天的记录：\n" +
                     rows + "\n要改哪一条？说「第几条」就行。")
-        st["day"]["items"].pop(idx)
         amended = True
     est = estimate(ev.get("desc") or ev.get("slot", ""))
-    st["day"]["items"].append({"desc": ev.get("desc"), "slot": ev.get("slot") or "",
-                               "at": datetime.datetime.now().strftime("%H:%M"), **est})
+    item = {"desc": ev.get("desc"), "slot": ev.get("slot") or "",
+            "at": datetime.datetime.now().strftime("%H:%M"), **est}
+    if amended:
+        st["day"]["items"][idx] = item      # 原地替换，不能挪到末尾（顺序就是时间线）
+    else:
+        st["day"]["items"].append(item)
     d0 = st["day"]
-    d0["sodium"] = d0.get("sodium", 0) + int(est.get("sodium_mg") or 0)
+    # 钠按条目重算：改一条时累加会重复计入旧值
+    d0["sodium"] = sum(int(i.get("sodium_mg") or 0) for i in st["day"]["items"])
     st.setdefault("sodium_by_date", {})[d0["date"]] = d0["sodium"]
     d = core.combine(st["day"]["items"])
     lo, hi = st["plan"]["kcal_range"]
