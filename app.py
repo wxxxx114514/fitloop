@@ -332,6 +332,37 @@ def today_summary(st):
     return line
 
 
+_KB = None
+
+
+def kb_lookup(text, k=2):
+    """查知识库。任何失败都返回空列表 —— 退回纯计算，不打断对话。"""
+    global _KB
+    if _KB is None:
+        try:
+            import kb_client
+            _KB = kb_client.KBClient(timeout=30.0)
+        except Exception:
+            _KB = False
+    if not _KB:
+        return []
+    try:
+        r = _KB.search(text, k)
+    except Exception:
+        return []
+    return [] if r.get("degraded") else r.get("results", [])
+
+
+def with_citation(text, answer):
+    """有依据就附一条出处；没有就原样返回（不编）。"""
+    hits = kb_lookup(text)
+    if not hits:
+        return answer
+    h = hits[0]
+    src = "《中国居民膳食指南（2022）》"
+    return answer + f"\n（依据：{src} p{h['page']}）"
+
+
 def do_query(st, target):
     d = core.combine(st["day"]["items"])
     lo, hi = st["plan"]["kcal_range"]
@@ -400,7 +431,7 @@ def handle(text, st):
             if resolve.should_ask(t):
                 out.append(resolve.ASK_TARGET)
             else:
-                out.append(do_query(st, t["value"]))
+                out.append(with_citation(text, do_query(st, t["value"])))
         elif kind == "end":
             d = core.combine(st["day"]["items"])
             r = core.classify_day(d["lo"], d["hi"], *st["plan"]["kcal_range"])
