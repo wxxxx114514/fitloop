@@ -124,12 +124,18 @@ def node_handle(state: S):
                 out.append(gate["text"] or ("记下 " + f"{h:g}" + " 小时，睡眠够，训练照常。"))
         elif kind == "query":
             said = (ev.get("desc") or "") + (state.get("incoming") or "")
-            if any(k in said for k in ("吃了多少", "还剩", "额度", "摄入", "还能吃", "今天吃了")):
+            # 注意「摄入」不能单独作为关键词：「每天奶类摄入多少」是知识问题，不是查账
+            if any(k in said for k in ("吃了多少", "还剩", "额度", "还能吃", "今天吃了", "今天摄入")):
                 out.append(engine.today_summary(st))
                 continue
             t = resolve.resolve_target(ev.get("desc") or "这个",
                                        [i.get("desc") for i in st["day"]["items"] if i.get("desc")])
-            out.append(resolve.ASK_TARGET if resolve.should_ask(t) else engine.do_query(st, t["value"]))
+            if resolve.should_ask(t):
+                out.append(resolve.ASK_TARGET)
+            else:
+                # 走 Web 也是这条路，所以引用必须加在这里，不能只在 app.handle 里加
+                said = state.get("incoming", "") or (ev.get("desc") or "")
+                out.append(engine.with_citation(said, engine.do_query(st, t["value"])))
         elif kind == "end":
             d = core.combine(st["day"]["items"])
             r = core.classify_day(d["lo"], d["hi"], *st["plan"]["kcal_range"])
