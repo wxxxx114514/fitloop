@@ -8,3 +8,5 @@ graph.db-*
 .dayoffset
 .venv/
 *.log
+# 讲解文档只留本地，不进仓库
+LEARN.md

@@ -32,6 +32,7 @@ class S(TypedDict, total=False):
 
 
 ASK_EPISODE = "还在理你上一条，先回答我这句："
+ASK_DETAIL = "这条我拿不准，补一句份量或数量？"
 
 
 def node_wait(state: S):
@@ -42,7 +43,10 @@ def node_wait(state: S):
 def node_parse(state: S):
     text = state.get("incoming", "")
     if state.get("extra"):
-        text = text + "\n（补充：" + state["extra"] + "）"
+        # 必须在输入里说明「这是对上一轮追问的回答」，否则模型只看到一个孤立的补充
+        text = ("（上一轮我问了：" + (state.get("ask") or ASK_DETAIL) + "）\n"
+                + "用户原话：" + text + "\n"
+                + "用户补充：" + state["extra"])
 
     if core.is_medical(state.get("incoming", "")):
         return Command(goto="handoff")
@@ -60,8 +64,8 @@ def node_parse(state: S):
 
 
 def node_clarify(state: S):
-    ans = interrupt({"ask": "这条我拿不准，补一句份量或数量？"})
-    return {"extra": str(ans)}
+    ans = interrupt({"ask": ASK_DETAIL})
+    return {"extra": str(ans), "ask": ASK_DETAIL}
 
 
 def node_handle(state: S):
@@ -136,7 +140,12 @@ def node_handle(state: S):
         out.append(hint)
     reply = "\n".join(out) if out else "没太听懂，换种说法？"
     now = __import__("datetime").datetime.now().strftime("%H:%M")
-    st.setdefault("messages", []).append({"role": "user", "text": state.get("incoming", ""), "at": now})
+    if state.get("ask"):
+        st.setdefault("messages", []).append({"role": "bot", "text": state["ask"], "at": now})
+    utt = state.get("incoming", "")
+    if state.get("extra"):
+        utt = utt + "（补充：" + state["extra"] + "）"
+    st.setdefault("messages", []).append({"role": "user", "text": utt, "at": now})
     st["messages"].append({"role": "bot", "text": reply, "at": now})
     st["messages"] = st["messages"][-200:]
     engine.save(st)
