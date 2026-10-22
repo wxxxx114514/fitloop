@@ -38,7 +38,9 @@ assert "没收" in out2
 eq(st["training"][today]["minutes"], 90, "离谱时长没有写进去")
 
 # --- 归档 + 回查 ---
-yday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+# 必须用 now_day()（按凌晨 4 点切天），不能用 date.today()——
+# 否则在 00:00-04:00 之间跑，两者算出的「昨天」不是同一天
+yday = (datetime.date.fromisoformat(engine.now_day()) - datetime.timedelta(days=1)).isoformat()
 st["day"] = {"date": yday, "items": [{"desc": "黄焖鸡米饭", "kcal": 750, "lo": 600, "hi": 900, "protein_g": 40}],
              "sleep_h": 6.5, "sodium": 0, "kcal": 0, "lo": 0, "hi": 0, "protein": 0}
 engine.save(st)
