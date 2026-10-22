@@ -359,7 +359,7 @@ def with_citation(text, answer):
     if not hits:
         return answer
     h = hits[0]
-    src = "《中国居民膳食指南（2022）》"
+    src = h.get("title") or h.get("source") or "知识库"   # 书名由 kb 给，不在这里写死
     return answer + f"\n（依据：{src} p{h['page']}）"
 
 
