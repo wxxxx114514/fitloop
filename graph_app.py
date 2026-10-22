@@ -25,7 +25,7 @@ CKPT = os.path.join(HERE, "graph.db")
 
 class S(TypedDict, total=False):
     incoming: str
-    extra: str
+    answered: bool
     events: list
     asks: int
     reply: str
@@ -41,17 +41,16 @@ def node_wait(state: S):
 
 
 def node_parse(state: S):
-    text = state.get("incoming", "")
-    if state.get("extra"):
-        # 必须在输入里说明「这是对上一轮追问的回答」，否则模型只看到一个孤立的补充
-        text = ("（上一轮我问了：" + (state.get("ask") or ASK_DETAIL) + "）\n"
-                + "用户原话：" + text + "\n"
-                + "用户补充：" + state["extra"])
+    st0 = engine.load()
+    if not state.get("answered"):
+        # 第一次进来：把这句写进对话（之后所有节点只读，不再拼字符串）
+        engine.append_msg(st0, "user", state.get("incoming", ""))
+        engine.save(st0)
 
     if core.is_medical(state.get("incoming", "")):
         return Command(goto="handoff")
 
-    p = engine.parse(text, engine.load())
+    p = engine.parse(st0)
     ev = p.get("events", [])
     if p.get("_error"):
         return Command(goto="handle", update={"events": [], "bad_json": True})
@@ -59,13 +58,20 @@ def node_parse(state: S):
     asks = state.get("asks", 0)
     need = p.get("needs_clarify") and any(e.get("kind") != "query" for e in ev) and asks < 2
     if need:
+        # 注意：clarify 节点在 resume 时会整段重跑，写消息必须放在这里，否则会写两遍
+        engine.append_msg(st0, "assistant", ASK_DETAIL)
+        engine.save(st0)
         return Command(goto="clarify", update={"events": ev, "asks": asks + 1})
     return Command(goto="handle", update={"events": ev, "reply": ""})
 
 
 def node_clarify(state: S):
+    # resume 时这个节点会从头再跑一次，所以只能做「等答案 + 写答案」
     ans = interrupt({"ask": ASK_DETAIL})
-    return {"extra": str(ans), "ask": ASK_DETAIL}
+    st = engine.load()
+    engine.append_msg(st, "user", str(ans))
+    engine.save(st)
+    return {"answered": True}
 
 
 def node_handle(state: S):
@@ -140,14 +146,7 @@ def node_handle(state: S):
         out.append(hint)
     reply = "\n".join(out) if out else "没太听懂，换种说法？"
     now = __import__("datetime").datetime.now().strftime("%H:%M")
-    if state.get("ask"):
-        st.setdefault("messages", []).append({"role": "bot", "text": state["ask"], "at": now})
-    utt = state.get("incoming", "")
-    if state.get("extra"):
-        utt = utt + "（补充：" + state["extra"] + "）"
-    st.setdefault("messages", []).append({"role": "user", "text": utt, "at": now})
-    st["messages"].append({"role": "bot", "text": reply, "at": now})
-    st["messages"] = st["messages"][-200:]
+    engine.append_msg(st, "assistant", reply, now)
     engine.save(st)
     return {"reply": reply, "asks": 0, "bad_json": False}
 

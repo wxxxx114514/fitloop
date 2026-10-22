@@ -158,29 +158,34 @@ def save(st):
     con.commit(); con.close()
 
 # ---------------- 各步骤 ----------------
+def append_msg(st, role, text, at=None):
+    """对话只有这一个写入口。图、CLI、Web 都走它。"""
+    st.setdefault("messages", []).append(
+        {"role": role, "text": text, "at": at or datetime.datetime.now().strftime("%H:%M")})
+    st["messages"] = st["messages"][-200:]
+
+
 def digest(st):
     """喂给解析节点的不是对话原文，是今天的事实。"""
     d = core.combine(st["day"]["items"])
     lo, hi = st["plan"]["kcal_range"]
     done = "；".join((i.get("desc") or "")[:14] for i in st["day"]["items"][-6:]) or "还没记"
-    convo = st.get("messages", [])[-8:]
-    said = " ｜ ".join(f"{m['role']}:{m['text'][:26]}" for m in convo) or "（还没聊）"
     hist = st.get("summaries", [])[-3:]      # 更早的留在库里，需要再查，不进上下文
     past = " ｜ ".join(core.summarize_line(s) for s in hist) or "（还没有历史）"
-    return (f"最近几天：{past}\n今天的对话：{said}\n"
+    return (f"最近几天：{past}\n"
             f"今天已吃 {d['kcal']:.0f} 大卡（额度 {lo}~{hi}），"
             f"蛋白 {d['protein_g']:.0f}/{st['plan']['protein_g']}g。已记过：{done}")
 
 
-def parse(text, st=None):
-    """正常上下文：system 带静态事实，中间是当天全部对话，最后一句是要解析的话。"""
-    sys_prompt = PARSE_SYS
-    if st is not None:
-        sys_prompt += "\n\n【今天的事实，只作参考，不要解析它】" + digest(st)
-    msgs = [{"role": "system", "content": sys_prompt}]
-    if st is not None:
-        msgs += _history(st)
-    msgs.append({"role": "user", "content": text})
+def parse(st, text=None):
+    """标准形状：system + 当天全部对话（当前这句已经在里面）。
+
+    text 只给无状态调用留口（一次性问一句、不落库）。
+    """
+    sys_prompt = PARSE_SYS + "\n\n【今天的事实，只作参考，不要解析它】" + digest(st)
+    msgs = [{"role": "system", "content": sys_prompt}] + _history(st, limit=60)
+    if text is not None:
+        msgs.append({"role": "user", "content": text})
     return _json_msgs(msgs)
 
 def estimate(desc):
@@ -381,7 +386,8 @@ def handle(text, st):
     if core.is_medical(text):
         return core.MEDICAL_STOP
 
-    p = parse(text)
+    append_msg(st, "user", text)      # CLI/无图入口：先写再读，和图的流程一致
+    p = parse(st)
     if p.get("_error"):
         return f"我这条没解析出来（{p['_error']}），换个说法再来一次？"
     out = []
