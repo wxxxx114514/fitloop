@@ -363,10 +363,32 @@ def kb_lookup(text, k=2):
     return [] if r.get("degraded") else r.get("results", [])
 
 
+def kb_lookup_status(text, k=2):
+    """返回 (命中列表, kb 是否可用)。区分"kb 挂了"和"kb 说没有"。"""
+    global _KB
+    if _KB is None:
+        try:
+            import kb_client
+            _KB = kb_client.KBClient(timeout=30.0)
+        except Exception:
+            _KB = False
+    if not _KB:
+        return [], False
+    try:
+        r = _KB.search(text, k)
+    except Exception:
+        return [], False
+    if r.get("degraded"):
+        return [], False
+    return r.get("results", []), True
+
+
 def with_citation(text, answer):
-    """有依据就附一条出处；没有就原样返回（不编）。"""
-    hits = kb_lookup(text)
+    """有依据附出处；kb 可用但没查到 → 明说没有依据；kb 挂了 → 静默。"""
+    hits, alive = kb_lookup_status(text)
     if not hits:
+        if alive:
+            return answer + "\n（这条我没在指南里查到依据，上面是常识性说法）"
         return answer
     h = hits[0]
     src = h.get("title") or h.get("source") or "知识库"   # 书名由 kb 给，不在这里写死
